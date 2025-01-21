@@ -6,8 +6,27 @@ import weatherbench2
 import xarray as xr
 import cython
 from multiprocessing import Pool, cpu_count
+from dateutil.relativedelta import relativedelta
 
 import time
+
+def workflowfullparallelmonthly(observations, forecasts, days, lag,zero, month):
+    ob, fo = timecuttingmonthly(observations,forecasts,days,lag+zero,month)
+    ob = ob.values
+    fo = fo[:,0:lag,:,:].values
+    ob, fo = scalebyobsadjusted(ob,fo,fo.shape[2])
+    pkarray, pkarraylat, distance, score = pkparallel(ob,fo,zero)
+
+    return (distance)
+
+def timecuttingmonthly(obsxarray,forsxarray, days, predtimedelta, month):
+    startdate = datetime(2020,1,1)
+    startdate = startdate + relativedelta(month=+month)+ timedelta(days=12) #5 day average looking at 12-17 day #Month 0 to 11
+    newdate = startdate + timedelta(days=days)
+    obsnewdate = newdate + timedelta(hours = (predtimedelta-1)*6)
+    
+    return obsxarray['geopotential'].sel(level = 500, time = slice(startdate, obsnewdate)), forsxarray['geopotential'].sel(level = 500, time = slice(startdate, newdate)), 
+
 
 def workflowfullparallel(observations, forecasts, days, lag,zero):
     ob, fo = timecutting(observations,forecasts,days,lag+zero)
