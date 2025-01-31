@@ -208,10 +208,10 @@ def pkfulladjusted(observations,forecasts,zero):
         latlength = forecasts.shape[3]
 
         if latlength == 32:
-             print("32")
+             #print("32")
              usedweights = weights
         if latlength == 121:
-             print("121")
+             #print("121")
              usedweights = weightslarger
 
 
@@ -221,7 +221,7 @@ def pkfulladjusted(observations,forecasts,zero):
         #print(pkarray.shape)
 
         for lat in range(latlength):
-            print(lat)
+            #print(lat)
 
         #Across all t, across all lags
             for t in range(time):
@@ -277,7 +277,7 @@ def pkens(observations, forecasts, zero, batch_size = None):
 
     # Determine the number of processes (default to number of cores)
     num_cores = cpu_count()
-    print(num_cores)
+    #print(num_cores)
     batch_size = batch_size or (latlength // num_cores + (latlength % num_cores > 0))
 
     # Split data into chunks by latitude
@@ -285,7 +285,7 @@ def pkens(observations, forecasts, zero, batch_size = None):
         range(i, min(i + batch_size, latlength))
         for i in range(0, latlength, batch_size)
     ]
-    print(lat_chunks)
+    #print(lat_chunks)
 
     observations_chunks = [
         observations[:, :, lat_chunk]
@@ -307,12 +307,15 @@ def pkens(observations, forecasts, zero, batch_size = None):
                  lat_chunks, observations_chunks, forecasts_chunks
              )]
         )
+        # print("Results from pool.starmap:")
+        # for i, res in enumerate(results):
+        #     print(f"Chunk {i}: Shape = {res.shape}, Type = {type(res)}, Dtype = {res.dtype}")
 
     if latlength == 32:
-        print("32")
+        #print("32")
         usedweights = weights
     if latlength == 121:
-        print("121")
+        #print("121")
         usedweights = weightslarger
 
     # Combine results from all chunks
@@ -320,9 +323,8 @@ def pkens(observations, forecasts, zero, batch_size = None):
 
     #Processing... 
     
-    #pkarray = np.concatenate(results, axis=0) #Against lat chunks
-
-    pkarraylat = np.sum(results * usedweights[:, None, None], axis=0) #using results
+    pkarray = np.concatenate(results, axis=0)
+    pkarraylat = np.sum(pkarray * usedweights[:, None, None], axis=0) #using results
     pktime = np.mean(pkarraylat, axis=0)
     # distance = pktime[:, 1] + pktime[:, 2] - 2 * pktime[:, 0]
     # score = pktime[:, 1] - 2 * pktime[:, 0]
@@ -357,6 +359,7 @@ def pkparallel_lat_splitens(lat_chunk, observations_chunk, forecasts_chunk, zero
                 y = torch.tensor(sigkernel.transform(np.expand_dims(observations_chunk[2*t+zero:2*t+zero+lag,:,lat], axis = 0), scale = 1, at = True, ll = False), dtype=torch.double)
 
                 score = signature_kernel.compute_scoring_rule(X,y)
+                #print(score.shape)
 
                 pkarray[lat,t,lag-1] = score
 
