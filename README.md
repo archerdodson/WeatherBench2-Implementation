@@ -22,6 +22,7 @@ SigKernelTrials3.ipynb
 Changing framing of SigKernel Implementation:
 ReframingSigKernel.ipynb
 
+**Term2 **
 Most updated implementation:
 Functions.py
 Term2Cleanup.ipynb
