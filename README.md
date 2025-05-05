@@ -29,3 +29,10 @@ Term2Cleanup.ipynb
 
 Small explorations:
 Multiprocessing.ipynb & MonthsandRegions.ipynb 
+
+Discriminative Power 
+FireModel2.ipynb
+
+ScoreCard
+Respective scorecard data can be found in FUXICard and IFSCard
+ScoreCardFinal.ipynb
