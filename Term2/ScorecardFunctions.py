@@ -59,8 +59,8 @@ def pkparallel_lat_split(lat_chunk, observations_chunk, forecasts_chunk, zero):
     """
     Function to compute results for a chunk of latitudes.
     """
-    static_kernel = sigkernel.Linear_ID_Kernel()
-    dyadic_order = 2
+    static_kernel = sigkernel.RBFKernel(sigma=1)
+    dyadic_order = 1
     signature_kernel = sigkernel.SigKernel(static_kernel, dyadic_order)
 
     time = forecasts_chunk.shape[0]
@@ -70,28 +70,51 @@ def pkparallel_lat_split(lat_chunk, observations_chunk, forecasts_chunk, zero):
     pkarray = np.zeros((latlength, time, lead, 3))
 
     for lat in range(latlength):
-        #for t in range(time):
         for lag in range(2, lead + 1):
 
-            batched_fors = torch.cat([
-                    torch.tensor(sigkernel.transform(np.expand_dims(forecasts_chunk[t,0:lag,:,lat], axis = 0), scale = 1, at = True, ll = False), dtype=torch.double)
-                    for t in range(time)
-                ])
-            
-            batched_obs = torch.cat([
-                torch.tensor(sigkernel.transform(np.expand_dims(observations_chunk[2*t+zero:2*t+zero+lag,:,lat], axis = 0), scale = 1, at = True, ll = False), dtype=torch.double)
-                for t in range(time)
-            ])
+            batched_fors = []
+            batched_obs = []
 
+            for t in range(time):
+                # Forecast path
+                forpath = torch.tensor(forecasts_chunk[t, 0:lag, :, lat], dtype=torch.double)
+                forpath = forpath.unsqueeze(0)  # shape: [1, lag, dim]
 
+                # Add zero basepoint
+                zeros = torch.zeros(1, 1, forpath.shape[2], dtype=forpath.dtype)
+                forpath = torch.cat([zeros, forpath], dim=1)
+
+                # Add time channel
+                time_vec = torch.linspace(0, 1, steps=forpath.shape[1], dtype=forpath.dtype)
+                time_vec = time_vec.view(1, -1, 1)
+                forpath = torch.cat([forpath, time_vec], dim=-1)
+
+                batched_fors.append(forpath)
+
+                # Observation path
+                obspath = torch.tensor(observations_chunk[2*t+zero:2*t+zero+lag, :, lat], dtype=torch.double)
+                obspath = obspath.unsqueeze(0)
+
+                zero_obs = torch.zeros(1, 1, obspath.shape[2], dtype=obspath.dtype)
+                obspath = torch.cat([zero_obs, obspath], dim=1)
+
+                time_vec_obs = torch.linspace(0, 1, steps=obspath.shape[1], dtype=obspath.dtype)
+                time_vec_obs = time_vec_obs.view(1, -1, 1)
+                obspath = torch.cat([obspath, time_vec_obs], dim=-1)
+
+                batched_obs.append(obspath)
+
+            batched_fors = torch.cat(batched_fors, dim=0)  # shape: [time, lag+1, dim+1]
+            batched_obs = torch.cat(batched_obs, dim=0)
+
+            # Now compute scoring rule components
             K_Xy = signature_kernel.compute_kernel(batched_fors, batched_obs)
             K_XX = signature_kernel.compute_kernel(batched_fors, batched_fors)
             K_yy = signature_kernel.compute_kernel(batched_obs, batched_obs)
 
-
-            pkarray[lat,:,lag-1,0] = K_Xy
-            pkarray[lat,:,lag-1,1] = K_XX
-            pkarray[lat,:,lag-1,2] = K_yy
+            pkarray[lat, :, lag-1, 0] = K_Xy.detach().numpy()
+            pkarray[lat, :, lag-1, 1] = K_XX.detach().numpy()
+            pkarray[lat, :, lag-1, 2] = K_yy.detach().numpy()
 
     return pkarray
 
